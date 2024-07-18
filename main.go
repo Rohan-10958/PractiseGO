@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,7 @@ import (
 	"xyz.com/practiseGO/RedisClient"
 )
 
-var XLSXfilepath string = "/employees.xlsx"
+var XLSXfilepath string = "employees.xlsx"
 
 func mergeArray(array []float64, l int, mid int, r int) {
 	ans := make([]float64, r-l+1)
@@ -125,7 +126,8 @@ func getEmployeeById(c *gin.Context) {
 	searchID := c.Query("employeeId")
 	type1 := c.Query("db")
 	if type1 == "" || type1 == "redis" {
-		rclient := RedisClient.NewRedisClient(nil, nil, nil)
+		redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+		rclient := RedisClient.NewRedisClient(&redisAddr, nil, nil)
 		employeeString, err := rclient.Get(context.Background(), searchID).Result()
 		if err == redis.Nil {
 			empData, err3 := getEmployeeByIdXl(searchID)
@@ -251,7 +253,8 @@ func deleteEmployeeById(c *gin.Context) {
 	}
 
 	filename.RemoveRow(sheetName, rowIndexToDelete)
-	rclient := RedisClient.NewRedisClient(nil, nil, nil)
+	redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+	rclient := RedisClient.NewRedisClient(&redisAddr, nil, nil)
 	isExists, err := rclient.Exists(context.Background(), id).Result()
 	if isExists > 0 {
 		if rclient.Del(context.Background(), id).Err() != nil {
