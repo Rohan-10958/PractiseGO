@@ -14,7 +14,7 @@ import (
 	"xyz.com/practiseGO/RedisClient"
 )
 
-var XLSXfilepath string = "employees.xlsx"
+var XLSXfilepath string = "/app/employees.xlsx"
 
 func mergeArray(array []float64, l int, mid int, r int) {
 	ans := make([]float64, r-l+1)
