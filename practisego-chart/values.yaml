@@ -1,0 +1,29 @@
+# Default values for preactisego-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+namespace : default
+practiseGo :
+  appName : practisego-app
+  replicaCount: 2
+  image:
+    repository: rohan10958/test:stable
+    pullPolicy: IfNotPresent
+  containerPort : 8080
+  service :
+    port : 80
+    type : nodePort
+    externalPort : 3000
+  redisconfigmap : redis-configmap
+redis :
+  replicaCount: 1
+  appName : redis
+  REDIS_HOST: redis
+  REDIS_PORT : 6379
+  service :
+    port : 6379
+  mage:
+    repository: redis:latest
+    pullPolicy: IfNotPresent
+  
+
+

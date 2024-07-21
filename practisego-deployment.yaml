@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.practiseGo.appName}}
+  labels :
+    app : {{.Values.practiseGo.appName}}-deployment
+  namespace : {{.Values.namespace}}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{.Values.practiseGo.appName}}-deployment
+  template:
+    metadata:
+      labels:
+        app: {{.Values.practiseGo.appName}}-deployment
+    spec:
+      containers:
+      - name: {{.Values.practiseGo.appName}}
+        image: {{.Values.practiseGo.image.repository}}
+        ports:
+        - containerPort: {{.Values.practiseGo.containerPort}}
+        env:
+        - name: REDIS_HOST
+          valueFrom: 
+            configMapKeyRef:
+              name: {{.Values.practisGo.redisconfigmap}}
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom: 
+            configMapKeyRef:
+              name: {{.Values.practisGo.redisconfigmap}}
+              key: REDIS_PORT
+        volumeMounts:
+        - name: employee-volume
+          mountPath: /app/employees.xlsx
+          subPath: employees.xlsx
+      volumes:
+      - name: employee-volume
+        persistentVolumeClaim:
+          claimName: employee-pvc
+      
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.Values.practiseGo.appName}}-service
+  namespace : {{.Values.namespace}}
+spec:
+  selector:
+    app: {{.Values.practiseGo.appName}}-deployment
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: {{.Values.practiseGo.service.port}}
+      targetPort: {{.Values.practiseGo.containerPort}}
+      nodePort : {{.Values.practiseGo.service.externalPort}}

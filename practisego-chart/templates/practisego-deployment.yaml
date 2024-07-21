@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: practisego-app
+  labels :
+    app : practisego-app-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: practisego-app-deployment
+  template:
+    metadata:
+      labels:
+        app: practisego-app-deployment
+    spec:
+      containers:
+      - name: practisego-app
+        image: rohan10958/test:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: REDIS_HOST
+          valueFrom: 
+            configMapKeyRef:
+              name: redis-configmap
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom: 
+            configMapKeyRef:
+              name: redis-configmap
+              key: REDIS_PORT
+      
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: practisego-app-service
+spec:
+  selector:
+    app: practisego-app-deployment
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      nodePort : 30000

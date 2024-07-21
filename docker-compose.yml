@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: rohan10958/test:stable
     ports:
       - "8080:8080"  # Replace with your application's port
     depends_on:

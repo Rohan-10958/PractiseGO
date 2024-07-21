@@ -15,6 +15,7 @@ import (
 )
 
 var XLSXfilepath string = "/app/employees.xlsx"
+var redisAddr = os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
 
 func mergeArray(array []float64, l int, mid int, r int) {
 	ans := make([]float64, r-l+1)
@@ -88,29 +89,26 @@ func openEmployeeXlFile() (*excelize.File, error) {
 func getEmployeeByIdXl(searchID string) (map[string]interface{}, error) {
 	xlsx, err := openEmployeeXlFile()
 	if err != nil {
-		return make(map[string]interface{}, 0), fmt.Errorf("%v", err)
+		return make(map[string]interface{}, 0), fmt.Errorf("%w", err)
 	}
 	rows, err := xlsx.GetRows("Employees")
 	if err != nil {
-		return make(map[string]interface{}, 0), fmt.Errorf("%v", err)
+		return make(map[string]interface{}, 0), fmt.Errorf("%w", err)
 	}
-	var employeeIds []float64
-
-	for _, row := range rows {
-		empId, err := strconv.Atoi(row[0])
-		if err != nil {
-			fmt.Println("error in converting")
+	idFound := false
+	var idIndex int
+	for rowIndex, row := range rows {
+		if rowIndex == 0 {
+			continue
 		}
-		employeeIds = append(employeeIds, float64(empId))
+		if len(row) > 0 && row[0] == searchID {
+			idIndex = rowIndex
+			idFound = true
+			break
+		}
 	}
-	searchIDInt, err2 := strconv.Atoi(searchID)
-	if err2 != nil {
-		fmt.Println("error in converting")
-	}
-
-	idIndex := binarySearch(employeeIds, float64(searchIDInt))
-	if idIndex == -1 {
-		return make(map[string]interface{}), fmt.Errorf("no employee id found")
+	if !idFound {
+		return make(map[string]interface{}, 0), fmt.Errorf("%w", err)
 	}
 	empData := map[string]interface{}{
 		"employeeid": rows[idIndex][0],
@@ -126,7 +124,7 @@ func getEmployeeById(c *gin.Context) {
 	searchID := c.Query("employeeId")
 	type1 := c.Query("db")
 	if type1 == "" || type1 == "redis" {
-		redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+		// redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
 		rclient := RedisClient.NewRedisClient(&redisAddr, nil, nil)
 		employeeString, err := rclient.Get(context.Background(), searchID).Result()
 		if err == redis.Nil {
@@ -253,7 +251,7 @@ func deleteEmployeeById(c *gin.Context) {
 	}
 
 	filename.RemoveRow(sheetName, rowIndexToDelete)
-	redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+	// redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
 	rclient := RedisClient.NewRedisClient(&redisAddr, nil, nil)
 	isExists, err := rclient.Exists(context.Background(), id).Result()
 	if isExists > 0 {
