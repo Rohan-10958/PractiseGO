@@ -30,6 +30,14 @@ spec:
             configMapKeyRef:
               name: redis-configmap
               key: REDIS_PORT
+        volumeMounts:
+        - name: employee-volume
+          mountPath: /app/employees.xlsx
+          subPath: employees.xlsx
+      volumes:
+      - name: employee-volume
+        persistentVolumeClaim:
+          claimName: employee-pvc
       
 
 ---

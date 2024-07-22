@@ -8,4 +8,5 @@ spec:
   accessModes:
     - ReadWriteMany
   hostPath:
-    path: "/Users/rohantp/practiseGO"  
+    path: "/mnt/data"  
+  storageClassName: "manual"
