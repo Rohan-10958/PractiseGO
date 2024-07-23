@@ -5,7 +5,7 @@ metadata:
   labels :
     app : practisego-app-deployment
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: practisego-app-deployment
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: practisego-app
-        image: rohan10958/test:latest
+        image: rohan10958/test:prom
         ports:
         - containerPort: 8080
         env:

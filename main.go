@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"github.com/xuri/excelize/v2"
 	"xyz.com/practiseGO/Concurrency"
@@ -16,6 +19,28 @@ import (
 
 var XLSXfilepath string = "/app/employees.xlsx"
 var redisAddr = os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+
+var (
+	promHttpRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_request_duration_seconds",
+			Help:    "Histogram of latencies for HTTP requests",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"method", "db"},
+	)
+	promHttpNoOfReq = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_no_of_requests",
+			Help: " Counter of number of requests",
+		},
+		[]string{"method", "db"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(promHttpRequestDuration, promHttpNoOfReq)
+}
 
 func mergeArray(array []float64, l int, mid int, r int) {
 	ans := make([]float64, r-l+1)
@@ -121,6 +146,7 @@ func getEmployeeByIdXl(searchID string) (map[string]interface{}, error) {
 }
 
 func getEmployeeById(c *gin.Context) {
+	startTime := time.Now()
 	searchID := c.Query("employeeId")
 	type1 := c.Query("db")
 	if type1 == "" || type1 == "redis" {
@@ -144,10 +170,16 @@ func getEmployeeById(c *gin.Context) {
 			}
 			c.Header("Content-Type", "application/json")
 			c.String(200, string(jsonData))
+			promHttpRequestDuration.WithLabelValues("GET", "xl").Observe(time.Since(startTime).Seconds())
+			promHttpNoOfReq.WithLabelValues("GET", "xl").Inc()
+			return
 		} else if err != nil {
+			c.JSON(200, gin.H{"error": "Error with redis"})
 			fmt.Printf("Error with redis : %v", err)
 		} else {
 			c.String(200, employeeString)
+			promHttpRequestDuration.WithLabelValues("GET", "redis").Observe(time.Since(startTime).Seconds())
+			promHttpNoOfReq.WithLabelValues("GET", "redis").Inc()
 			return
 		}
 
@@ -164,9 +196,12 @@ func getEmployeeById(c *gin.Context) {
 		}
 		c.Header("Content-Type", "application/json")
 		c.String(200, string(jsonData))
+		promHttpRequestDuration.WithLabelValues("GET", "xl").Observe(time.Since(startTime).Seconds())
+		promHttpNoOfReq.WithLabelValues("GET", "xl").Inc()
 	}
 }
 func addEmployeeToXl(c *gin.Context) {
+	startTime := time.Now()
 	var newEmployee Employee
 	if err := c.ShouldBindJSON(&newEmployee); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -204,10 +239,13 @@ func addEmployeeToXl(c *gin.Context) {
 
 	// Respond with success
 	c.JSON(200, gin.H{"message": "Employee added successfully"})
+	promHttpRequestDuration.WithLabelValues("POST", "xl").Observe(time.Since(startTime).Seconds())
+	promHttpNoOfReq.WithLabelValues("POST", "xl").Inc()
+
 }
 
 func FindSumUsingNWorkersReqHandler(c *gin.Context) {
-
+	startTime := time.Now()
 	num, err := strconv.Atoi(c.Param("num"))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "Couldnt extract num in findsum"})
@@ -218,9 +256,12 @@ func FindSumUsingNWorkersReqHandler(c *gin.Context) {
 	}
 	val, timeTaken := Concurrency.FindSumUsingNWorkers(num, noOfWorkers)
 	c.JSON(200, gin.H{"value": val, "timeTaken": timeTaken})
+	promHttpRequestDuration.WithLabelValues("GET", "").Observe(time.Since(startTime).Seconds())
+	promHttpNoOfReq.WithLabelValues("GET", "").Inc()
 }
 
 func deleteEmployeeById(c *gin.Context) {
+	startTime := time.Now()
 	id := c.Param("id")
 	filename, err := openEmployeeXlFile()
 	if err != nil {
@@ -266,6 +307,15 @@ func deleteEmployeeById(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Employee deleted successfully"})
+	promHttpRequestDuration.WithLabelValues("DELETE", "xl").Observe(time.Since(startTime).Seconds())
+	promHttpNoOfReq.WithLabelValues("DELETE", "xl").Inc()
+}
+
+func prometheusHandler() gin.HandlerFunc {
+	h := promhttp.Handler()
+	return func(c *gin.Context) {
+		h.ServeHTTP(c.Writer, c.Request)
+	}
 }
 
 func main() {
@@ -278,6 +328,7 @@ func main() {
 	r.GET("/sumUsingNWorkers/:num/:noOfWorkers", FindSumUsingNWorkersReqHandler)
 	//r.PosT("")
 	r.DELETE("/deleteEmployeeById/:id", deleteEmployeeById)
+	r.GET("/metrics", prometheusHandler())
 	if err := r.Run(":8080"); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}

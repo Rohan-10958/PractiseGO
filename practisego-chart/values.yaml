@@ -4,7 +4,7 @@
 namespace : default
 practiseGo :
   appName : practisego-app
-  replicaCount: 2
+  replicaCount: 1
   image:
     repository: rohan10958/test:stable
     pullPolicy: IfNotPresent
